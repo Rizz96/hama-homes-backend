@@ -1,7 +1,8 @@
-// backend/server.js (FINAL WORKING VERSION)
+// backend/server.js (FINAL VERSION WITH IMAGE UPLOAD)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import multer from 'multer';
 
 // Load environment variables
 dotenv.config();
@@ -11,18 +12,21 @@ import authRoutes from './routes/authRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
+import { addImagesToProperty } from './controllers/propertyController.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// --- ROBUST CORS CONFIGURATION ---
+// --- CORS CONFIGURATION ---
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://your-frontend-url.com'], // Add your deployed frontend URL later
+  origin: ['http://localhost:5173', 'https://your-frontend-url.com'],
   methods: 'GET,POST,PUT,DELETE,OPTIONS',
   allowedHeaders: 'Content-Type,Authorization',
 };
 app.use(cors(corsOptions));
-// NOTE: The 'app.options' line is removed. The 'cors' middleware handles preflight requests automatically.
+
+// Configure Multer for memory storage
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Middlewares
 app.use(express.json());
@@ -32,6 +36,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', applicationRoutes);
+
+// --- Route for adding images to a property ---
+app.post('/api/properties/:id/images', upload.array('images', 10), addImagesToProperty);
 
 // Start the Server
 app.listen(PORT, () => {
