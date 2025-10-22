@@ -1,4 +1,4 @@
-// controllers/propertyController.js (FINAL VERSION WITH IMAGE UPLOAD)
+// controllers/propertyController.js (FINAL WORKING VERSION)
 import { supabase } from '../config/supabaseClient.js';
 import { validationResult } from 'express-validator';
 
@@ -70,16 +70,26 @@ export const getMyProperties = async (req, res) => {
   return res.json(data);
 }; 
 
-// --- NEW: Function to add images to a property ---
+// --- FINAL: Function to add images to a property ---
 export const addImagesToProperty = async (req, res) => {
     const { id } = req.params;
     const files = req.files;
     const landlord_id = req.user.id;
 
-    if (!files || files.length === 0) return res.status(400).json({ error: 'No images uploaded.' });
+    if (!files || files.length === 0) {
+        return res.status(400).json({ error: 'No images uploaded.' });
+    }
 
-    const { data: property, error: fetchError } = await supabase.from('properties').select('landlord_id').eq('id', id).single();
-    if (fetchError || property.landlord_id !== landlord_id) return res.status(403).json({ error: 'Forbidden: You do not own this property.'});
+    // Verify ownership
+    const { data: property, error: fetchError } = await supabase
+        .from('properties')
+        .select('landlord_id')
+        .eq('id', id)
+        .single();
+    
+    if (fetchError || property.landlord_id !== landlord_id) {
+        return res.status(403).json({ error: 'Forbidden: You do not own this property.'});
+    }
 
     try {
         const imageUrls = [];
@@ -87,16 +97,39 @@ export const addImagesToProperty = async (req, res) => {
             const fileExt = file.originalname.split('.').pop();
             const fileName = `${Date.now()}.${fileExt}`;
             const filePath = `${id}/${fileName}`;
-            const { error: uploadError } = await supabase.storage.from('property-images').upload(filePath, file.buffer, { contentType: file.mimetype, upsert: true });
-            if (uploadError) throw uploadError;
-            const { data: { publicUrl } } = supabase.storage.from('property-images').getPublicUrl(filePath);
+
+            const { error: uploadError } = await supabase.storage
+                .from('property-images')
+                .upload(filePath, file.buffer, {
+                    contentType: file.mimetype,
+                    upsert: true,
+                });
+
+            if (uploadError) {
+                console.error('Supabase storage upload error:', uploadError);
+                throw new Error('Failed to upload image to storage.');
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('property-images')
+                .getPublicUrl(filePath);
+
             imageUrls.push(publicUrl);
         }
-        const { error: insertError } = await supabase.from('property_images').insert(imageUrls.map(url => ({ property_id: id, image_url: url })));
-        if (insertError) throw insertError;
+
+        const { error: insertError } = await supabase
+            .from('property_images')
+            .insert(imageUrls.map(url => ({ property_id: id, image_url: url })));
+
+        if (insertError) {
+            console.error('Supabase DB insert error:', insertError);
+            throw new Error('Failed to save image URLs to database.');
+        }
+
         return res.status(201).json({ message: 'Images uploaded successfully', urls: imageUrls });
+
     } catch (error) {
-        console.error('Error uploading images:', error);
-        return res.status(400).json({ error: 'Failed to upload images.' });
+        console.error('Error in addImagesToProperty:', error);
+        return res.status(500).json({ error: error.message || 'An unknown error occurred during image upload.' });
     }
 };
