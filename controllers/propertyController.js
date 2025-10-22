@@ -1,4 +1,4 @@
-// controllers/propertyController.js (UPDATED FOR MULTIPLE IMAGES)
+// controllers/propertyController.js (STABLE VERSION)
 import { supabase } from '../config/supabaseClient.js';
 import { validationResult } from 'express-validator';
 
@@ -8,15 +8,12 @@ export const createProperty = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  // We no longer expect image_url here. Images are added separately.
-  const { title, description, price, location } = req.body;
+  const { title, description, price, location, image_url } = req.body;
   const landlord_id = req.user.id;
-
-  console.log('Creating property with data:', { title, description, price, location, landlord_id });
 
   const { data, error } = await supabase
     .from('properties')
-    .insert([{ title, description, price, location, landlord_id }])
+    .insert([{ title, description, price, location, image_url, landlord_id }])
     .select();
 
   if (error) {
@@ -24,11 +21,9 @@ export const createProperty = async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
   
-  console.log('Property created successfully:', data);
   return res.status(201).json(data[0]);
 };
 
-// --- REPLACED FUNCTION ---
 export const getAllProperties = async (req, res) => {
   try {
     let query = supabase.from('properties').select('*');
@@ -52,17 +47,9 @@ export const getAllProperties = async (req, res) => {
   }
 };
 
-// --- UPDATED: Now fetches associated images ---
 export const getPropertyById = async (req, res) => {
     const { id } = req.params;
-    const { data, error } = await supabase
-        .from('properties')
-        .select(`
-          *,
-          property_images ( image_url )
-        `)
-        .eq('id', id)
-        .single();
+    const { data, error } = await supabase.from('properties').select('*').eq('id', id).single();
 
     if (error) return res.status(404).json({ error: 'Property not found.' });
     return res.json(data);
@@ -121,65 +108,4 @@ export const getMyProperties = async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
   return res.json(data);
-}; 
-
-// --- NEW: Function to add images to a property ---
-export const addImagesToProperty = async (req, res) => {
-    const { id } = req.params;
-    const files = req.files;
-    const landlord_id = req.user.id;
-
-    if (!files || files.length === 0) {
-        return res.status(400).json({ error: 'No images uploaded.' });
-    }
-
-    // Verify ownership
-    const { data: property, error: fetchError } = await supabase
-        .from('properties')
-        .select('landlord_id')
-        .eq('id', id)
-        .single();
-    
-    if (fetchError || property.landlord_id !== landlord_id) {
-        return res.status(403).json({ error: 'Forbidden: You do not own this property.'});
-    }
-
-    try {
-        const imageUrls = [];
-        for (const file of files) {
-            const fileExt = file.originalname.split('.').pop();
-            const fileName = `${Date.now()}.${fileExt}`;
-            const filePath = `${id}/${fileName}`;
-
-            // Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-                .from('property-images') // Make sure you have a bucket named 'property-images'
-                .upload(filePath, file.buffer, {
-                    contentType: file.mimetype,
-                    upsert: true,
-                });
-
-            if (uploadError) throw uploadError;
-
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('property-images')
-                .getPublicUrl(filePath);
-
-            imageUrls.push(publicUrl);
-        }
-
-        // Insert URLs into the property_images table
-        const { error: insertError } = await supabase
-            .from('property_images')
-            .insert(imageUrls.map(url => ({ property_id: id, image_url: url })));
-
-        if (insertError) throw insertError;
-
-        return res.status(201).json({ message: 'Images uploaded successfully', urls: imageUrls });
-
-    } catch (error) {
-        console.error('Error uploading images:', error);
-        return res.status(400).json({ error: 'Failed to upload images.' });
-    }
 };
