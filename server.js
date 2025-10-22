@@ -1,4 +1,4 @@
-// backend/server.js (WITH DEBUGGING LOGS)
+// backend/server.js (CORRECTED FOR EXPRESS 5)
 console.log("SERVER STARTING: Reading server.js file...");
 
 import express from 'express';
@@ -30,8 +30,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Handle preflight requests for all routes
-app.options('*', cors(corsOptions));
+// Handle preflight requests for all routes (FIXED)
+app.options('/*', cors(corsOptions)); // <-- THIS LINE IS THE FIX
 
 // Middlewares
 app.use(express.json());
