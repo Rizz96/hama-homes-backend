@@ -1,23 +1,16 @@
-// backend/server.js (CORRECTED FOR EXPRESS 5)
-console.log("SERVER STARTING: Reading server.js file...");
-
+// backend/server.js (FINAL WORKING VERSION)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-console.log("SERVER STARTING: Dependencies imported successfully.");
-
 // Load environment variables
 dotenv.config();
-console.log("SERVER STARTING: Environment variables loaded.");
 
 // Import route files
 import authRoutes from './routes/authRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
-
-console.log("SERVER STARTING: Route files imported successfully.");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,9 +22,7 @@ const corsOptions = {
   allowedHeaders: 'Content-Type,Authorization',
 };
 app.use(cors(corsOptions));
-
-// Handle preflight requests for all routes (FIXED)
-app.options('/*', cors(corsOptions)); // <-- THIS LINE IS THE FIX
+// NOTE: The 'app.options' line is removed. The 'cors' middleware handles preflight requests automatically.
 
 // Middlewares
 app.use(express.json());
@@ -41,8 +32,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', applicationRoutes);
-
-console.log("SERVER STARTING: Routes and middleware configured.");
 
 // Start the Server
 app.listen(PORT, () => {
