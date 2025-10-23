@@ -19,13 +19,30 @@ export const createProperty = async (req, res) => {
   return res.status(201).json(data[0]);
 };
 
+// --- UPDATED: Now fetches associated images ---
 export const getAllProperties = async (req, res) => {
   try {
-    let query = supabase.from('properties').select('*');
-    if (req.query.location) query = query.ilike('location', `%${req.query.location}%`);
-    if (req.query.maxPrice) query = query.lte('price', req.query.maxPrice);
+    // Start with the base query, now including the related images
+    let query = supabase.from('properties').select(`
+      *,
+      property_images ( image_url )
+    `);
+
+    // Check for a 'location' query parameter
+    if (req.query.location) {
+      query = query.ilike('location', `%${req.query.location}%`);
+    }
+
+    // Check for a 'maxPrice' query parameter
+    if (req.query.maxPrice) {
+      query = query.lte('price', req.query.maxPrice);
+    }
+
+    // Execute the final query
     const { data, error } = await query;
+
     if (error) throw error;
+
     return res.json(data);
   } catch (error) {
     console.error("Error fetching all properties:", error);
