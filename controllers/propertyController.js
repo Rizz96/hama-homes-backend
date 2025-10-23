@@ -1,4 +1,4 @@
-// controllers/propertyController.js (FINAL BUG-FIXED VERSION)
+// controllers/propertyController.js (FINAL DEBUG VERSION)
 import { supabase } from '../config/supabaseClient.js';
 import { validationResult } from 'express-validator';
 
@@ -70,8 +70,10 @@ export const getMyProperties = async (req, res) => {
   return res.json(data);
 }; 
 
-// --- FINAL BUG-FIXED: Function to add images to a property ---
+// --- NEW FUNCTION WITH DEBUG FLAG ---
 export const addImagesToProperty = async (req, res) => {
+    console.log("IMAGE UPLOAD DEBUG: The new addImagesToProperty function is running!"); // <-- THIS IS THE FLAG
+
     const { id } = req.params;
     const files = req.files;
     const landlord_id = req.user.id;
@@ -80,14 +82,13 @@ export const addImagesToProperty = async (req, res) => {
         return res.status(400).json({ error: 'No images uploaded.' });
     }
 
-    // Verify ownership (THIS IS THE FIX)
+    // Verify ownership
     const { data: property, error: fetchError } = await supabase
         .from('properties')
         .select('landlord_id')
         .eq('id', id)
         .single();
     
-    // This check now correctly handles the case where 'property' is undefined
     if (fetchError || !property || property.landlord_id !== landlord_id) {
         return res.status(403).json({ error: 'Forbidden: You do not own this property.'});
     }
