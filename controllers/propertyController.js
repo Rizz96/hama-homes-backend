@@ -80,9 +80,15 @@ export const deleteProperty = async (req, res) => {
     return res.status(200).json({ message: 'Property deleted successfully.' });
 };
 
+// --- UPDATED: Now fetches associated images ---
 export const getMyProperties = async (req, res) => {
   const landlord_id = req.user.id;
-  const { data, error } = await supabase.from('properties').select('*').eq('landlord_id', landlord_id);
+
+  const { data, error } = await supabase
+    .from('properties')
+    .select(`*, property_images(image_url)`) // <-- THIS IS THE FIX
+    .eq('landlord_id', landlord_id);
+
   if (error) return res.status(400).json({ error: error.message });
   return res.json(data);
 }; 
